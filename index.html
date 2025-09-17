@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Trip Capture & Expense Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Leaflet.js (for map) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body>
+  <div class="container app-root">
+    <!-- HEADER/SUMMARY -->
+    <header class="app-header flex justify-between items-center py-8 px-8">
+      <div class="location-status">
+        <span class="status status--info" id="current-location-status">Current location: Simulated</span>
+      </div>
+      <div class="flex gap-16">
+        <div class="total-trips-summary">
+          <span id="total-trip-count">2</span> trips
+        </div>
+        <div class="total-expense-summary">
+          ₹<span id="total-expense-amount">1420</span> expenses
+        </div>
+        <button id="theme-toggle-btn" class="btn btn--secondary" title="Toggle Dark/Light Mode">🌗</button>
+      </div>
+    </header>
+    <!-- NAVIGATION TABS -->
+    <nav class="tabs-nav flex gap-8 mb-8">
+      <button class="tab-btn btn btn--outline" data-tab="trip-logger">Trip Logger</button>
+      <button class="tab-btn btn btn--outline" data-tab="expense-tracker">Expense Tracker</button>
+      <button class="tab-btn btn btn--outline" data-tab="dashboard">Dashboard</button>
+      <button class="tab-btn btn btn--outline" data-tab="map-view">Map View</button>
+    </nav>
+    <!-- TAB CONTENTS -->
+    <main class="tabs-content">
+      <!-- TRIP LOGGER -->
+      <section id="trip-logger" class="tab-panel">
+        <div class="card mb-8">
+          <div class="card__body">
+            <h2>Log a Trip</h2>
+            <form id="trip-form" class="grid-form">
+              <div class="form-group">
+                <label class="form-label" for="startLocation">Start Location</label>
+                <input class="form-control" type="text" id="startLocation" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="endLocation">End Location</label>
+                <input class="form-control" type="text" id="endLocation" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="distance">Distance (km)</label>
+                <input class="form-control" type="number" min="0.1" step="0.1" id="distance" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="purpose">Trip Purpose</label>
+                <select class="form-control" id="purpose" required></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="tripDate">Date</label>
+                <input class="form-control" type="date" id="tripDate" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="tripTime">Time</label>
+                <input class="form-control" type="time" id="tripTime" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="notes">Notes</label>
+                <textarea class="form-control" id="notes" rows="2"></textarea>
+              </div>
+              <div class="form-group flex gap-8 mt-8">
+                <button type="button" class="btn btn--primary" id="start-trip-btn">Start Trip (GPS)</button>
+                <button type="submit" class="btn btn--secondary" id="end-trip-btn">End Trip</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__header flex justify-between items-center">
+            <h3>Recent Trips</h3>
+            <button id="export-trips-btn" class="btn btn--sm btn--outline">Export CSV</button>
+          </div>
+          <div class="card__body">
+            <ul id="trips-list" class="entries-list"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- EXPENSE TRACKER -->
+      <section id="expense-tracker" class="tab-panel hidden">
+        <div class="card mb-8">
+          <div class="card__body">
+            <h2>Add Expense</h2>
+            <form id="expense-form" class="grid-form">
+              <div class="form-group">
+                <label class="form-label" for="description">Description</label>
+                <input class="form-control" type="text" id="description" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="amount">Amount (₹)</label>
+                <input class="form-control" type="number" min="1" step="1" id="amount" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="category">Category</label>
+                <select class="form-control" id="category" required></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="expenseDate">Date</label>
+                <input class="form-control" type="date" id="expenseDate" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="receipt">Receipt</label>
+                <input class="form-control" type="file" id="receipt" accept="image/*,.pdf" />
+                <span id="receipt-filename" class="status status--info hidden"></span>
+                <button type="button" id="ocr-btn" class="btn btn--secondary btn--sm mt-8">Simulate OCR</button>
+              </div>
+              <div class="form-group flex gap-8 mt-8">
+                <button type="submit" class="btn btn--primary">Add Expense</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__header flex justify-between items-center">
+            <h3>Expenses</h3>
+            <button id="export-expenses-btn" class="btn btn--sm btn--outline">Export CSV</button>
+          </div>
+          <div class="card__body">
+            <ul id="expenses-list" class="entries-list"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- DASHBOARD -->
+      <section id="dashboard" class="tab-panel hidden">
+        <div class="flex gap-16 mb-8 dashboard-cards-wrap">
+          <div class="card dashboard-card">
+            <div class="card__body">
+              <h4>Total Trips (This Week/Month)</h4>
+              <span id="dashboard-trips-week">0</span> / <span id="dashboard-trips-month">0</span>
+            </div>
+          </div>
+          <div class="card dashboard-card">
+            <div class="card__body">
+              <h4>Total Distance</h4>
+              <span id="dashboard-distance">0</span> km
+            </div>
+          </div>
+          <div class="card dashboard-card">
+            <div class="card__body">
+              <h4>Total Expenses</h4>
+              ₹<span id="dashboard-expenses">0</span>
+            </div>
+          </div>
+          <div class="card dashboard-card">
+            <div class="card__body">
+              <h4>Budget Remaining</h4>
+              <span id="dashboard-budget-remaining">₹0</span> <span class="status status--warning" id="budget-alert" style="display:none;">Budget Low!</span>
+            </div>
+          </div>
+        </div>
+        <div class="charts-wrap flex flex-col gap-16">
+          <div class="card">
+            <div class="card__body">
+              <h3>Expenses by Category</h3>
+              <div class="chart-container" style="height:320px; position:relative;">
+                <canvas id="category-pie-chart"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card__body">
+              <h3>Daily/Weekly Expense Trends</h3>
+              <div class="chart-container" style="height:320px; position:relative;">
+                <canvas id="expense-trend-chart"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card__body">
+              <h3>Trip vs Expense Correlation</h3>
+              <div class="chart-container" style="height:320px; position:relative;">
+                <canvas id="trip-expense-corr-chart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MAP VIEW -->
+      <section id="map-view" class="tab-panel hidden">
+        <div class="card">
+          <div class="card__header flex justify-between items-center">
+            <h3>Map View</h3>
+            <div class="flex gap-8">
+              <button id="toggle-trips-layer" class="btn btn--sm btn--outline active">Trips Layer</button>
+              <button id="toggle-expenses-layer" class="btn btn--sm btn--outline active">Expenses Layer</button>
+            </div>
+          </div>
+          <div class="card__body">
+            <div id="map" style="height:400px; border-radius: var(--radius-lg); overflow:hidden"></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Modals -->
+  <div id="edit-modal" class="modal hidden">
+    <div class="modal-content card">
+      <div class="card__header">
+        <h4 id="edit-modal-title"></h4>
+      </div>
+      <div class="card__body" id="edit-modal-body"></div>
+      <div class="card__footer flex gap-8 justify-end">
+        <button id="edit-modal-save" class="btn btn--primary">Save</button>
+        <button id="edit-modal-cancel" class="btn btn--secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <div id="confirm-modal" class="modal hidden">
+    <div class="modal-content card">
+      <div class="card__body">
+        <h4 id="confirm-modal-message"></h4>
+      </div>
+      <div class="card__footer flex gap-8 justify-end">
+        <button id="confirm-modal-yes" class="btn btn--primary">Yes</button>
+        <button id="confirm-modal-no" class="btn btn--secondary">No</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
